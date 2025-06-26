@@ -1,6 +1,6 @@
-## Learning Path to Master Coordinate Systems for Interactive UI Design
+## 📘 Learning Path to Master Coordinate Systems for Interactive UI Design
 
-#### Phase 1: Build the Foundations
+#### 🧭 Phase 1: Build the Foundations
 Start by mastering the screen-space logic every UI element obeys:
 
 - **Focus:** Cartesian plane, positive axes, (x, y) addressing
@@ -13,7 +13,7 @@ Start by mastering the screen-space logic every UI element obeys:
 
 ---
 
-#### Phase 2: Grid, Flex, and Canvas Logic
+#### 🎨 Phase 2: Grid, Flex, and Canvas Logic
 Deepen your understanding of relative offsets, fluid layout shifts, and canvas rendering spaces:
 
 - **Focus:** CSS Grid positioning, canvas rendering space, relative offset logic
@@ -27,7 +27,7 @@ Deepen your understanding of relative offsets, fluid layout shifts, and canvas r
 
 ---
 
-#### Phase 3: Real-World Interaction Layer
+#### 🚀 Phase 3: Real-World Interaction Layer
 Simulate UI challenges like tooltips, draggable nodes, and anchoring popups:
 
 - **Focus:** UI event-to-position mapping, tooltip anchoring, drag constraints
@@ -43,7 +43,7 @@ Simulate UI challenges like tooltips, draggable nodes, and anchoring popups:
 
 ---
 
-#### Phase 4: Explore Advanced Use Cases
+#### 🧠 Phase 4: Explore Advanced Use Cases
 Blend everything into smart, responsive design systems:
 
 - **Focus:** Multi-object interaction, animation paths, and minimap scaling
