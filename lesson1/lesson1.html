@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 1</title>
+
+    <style>
+        .node {
+            position: absolute;
+            top: 100px;
+            left: 150px;
+            width: 80px;
+            height: 80px;
+            background: teal;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #333;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="node1" class="node">Node</div>
+    <div id="tooltip" class="tooltip">Node Info</div>
+
+
+    <script>
+        const node1 = document.getElementById('node1');
+        const tooltip = document.getElementById('tooltip');
+
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        node1.addEventListener('mousedown', (e) => {
+
+            isDragging = true;
+            //offsetX = e.clientX - node1.getBoundingClientRect().left;
+            //offsetY = e.clientY - node1.getBoundingClientRect().top;
+            offsetX = e.clientX - node1.offsetLeft;
+            offsetY = e.clientY - node1.offsetTop;
+            //console.log(offsetX, offsetY);
+
+        });
+
+        node1.addEventListener('mousemove', (e) => {
+
+            if (!isDragging) return;
+            const x = e.clientX - offsetX;
+            const y = e.clientY - offsetY;
+
+            node1.style.left = `${x}px`;
+            node1.style.top = `${y}px`;
+            //console.log(x, y);
+
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            tooltip.style.display = "none";
+        });
+
+    </script>
+</body>
+
+</html>

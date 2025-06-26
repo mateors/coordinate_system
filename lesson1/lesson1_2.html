@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 1.1</title>
+
+    <style>
+        .node {
+            will-change: transform;
+            position: absolute;
+            transform: translate(150px, 100px);
+            /* initial position */
+            width: 80px;
+            height: 80px;
+            background: teal;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #333;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="node1" class="node">Node</div>
+    <div id="tooltip" class="tooltip">Node Info</div>
+
+
+    <script>
+        const node1 = document.getElementById('node1');
+        const tooltip = document.getElementById('tooltip');
+
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let currentY = 0;
+
+
+
+        node1.addEventListener('mousedown', (e) => {
+
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            tooltip.style.display = "block";
+            updateTooltipPosition(currentX + 40, currentY - 20); // offset from node center
+
+
+        });
+
+        // node1.addEventListener('mousemove', (e) => {
+
+        //     if (!isDragging) return;
+        //     const dx = e.clientX - startX;
+        //     const dy = e.clientY - startY;
+
+        //     const newX = currentX + dx;
+        //     const newY = currentY + dy;
+        //     node1.style.transform = `translate(${newX}px, ${newY}px)`;
+        //     //console.log(x, y);
+        //     updateTooltipPosition(newX + 40, newY - 20);
+
+        // });
+
+        let animationFrameId = null;
+        document.addEventListener("mousemove", (e) => {
+
+            if (!isDragging) return;
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            animationFrameId = requestAnimationFrame(() => {
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const newX = currentX + dx;
+                const newY = currentY + dy;
+
+                node1.style.transform = `translate(${newX}px, ${newY}px)`;
+                updateTooltipPosition(newX + 40, newY - 20);
+            });
+        });
+
+        document.addEventListener("mouseup", () => {
+
+            if (!isDragging) return;
+            currentX = parseFloat(node1.style.transform.match(/translate\(([^p]+)px, ([^p]+)px\)/)[1]);
+            currentY = parseFloat(node1.style.transform.match(/translate\(([^p]+)px, ([^p]+)px\)/)[2]);
+            isDragging = false;
+            tooltip.style.display = "none";
+        });
+
+        function updateTooltipPosition(x, y) {
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+        }
+
+    </script>
+</body>
+
+</html>

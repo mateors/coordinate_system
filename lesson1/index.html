@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Interactive Graph Canvas</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            background-color: #f0f0f0;
+            background-image:
+                repeating-linear-gradient(0deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 20px),
+                repeating-linear-gradient(90deg, #ddd 0px, #ddd 1px, transparent 1px, transparent 20px);
+            cursor: grab;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate(0, 0);
+        }
+
+        .node {
+            position: absolute;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: move;
+            user-select: none;
+            z-index: 10;
+        }
+
+        .node.selected {
+            border-color: dodgerblue;
+            box-shadow: 0 0 5px dodgerblue;
+        }
+
+        .handle {
+            width: 10px;
+            height: 10px;
+            background: dodgerblue;
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            border-radius: 50%;
+            cursor: crosshair;
+        }
+
+        #selectionBox {
+            position: absolute;
+            border: 1px dashed #333;
+            background: rgba(0, 128, 255, 0.1);
+            display: none;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow: visible;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        line.edge {
+            stroke: #555;
+            stroke-width: 2;
+            marker-end: url(#arrowhead);
+        }
+
+        #groupHighlight {
+            position: absolute;
+            border: 2px dashed dodgerblue;
+            background: rgba(30, 144, 255, 0.05);
+            display: none;
+            z-index: 5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <svg id="edges">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+                </marker>
+            </defs>
+        </svg>
+
+        <div id="canvas">
+            <div class="node" style="left: 100px; top: 100px;">
+                Node A
+                <div class="handle output"></div>
+            </div>
+            <div class="node" style="left: 300px; top: 200px;">
+                Node B
+                <div class="handle input"></div>
+            </div>
+
+            <div id="groupHighlight"></div>
+
+        </div>
+
+        <div id="selectionBox"></div>
+
+    </div>
+
+    <script>
+        const wrapper = document.getElementById("wrapper");
+        const canvas = document.getElementById("canvas");
+        const selectionBox = document.getElementById("selectionBox");
+        const svg = document.getElementById("edges");
+
+        let transform = { x: 0, y: 0 };
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+        let isDraggingNode = false;
+        let dragOffset = { x: 0, y: 0 };
+        let draggedNode = null;
+        let isSelecting = false;
+        let selectStart = { x: 0, y: 0 };
+        let tempLine = null;
+        let edgeStartNode = null;
+
+        // Spacebar state
+        window.spacePressed = false;
+        document.addEventListener("keydown", e => {
+            if (e.code === "Space") {
+                window.spacePressed = true;
+                wrapper.style.cursor = "grabbing";
+            }
+        });
+        document.addEventListener("keyup", e => {
+            if (e.code === "Space") {
+                window.spacePressed = false;
+                wrapper.style.cursor = "grab";
+            }
+        });
+
+        // Pan canvas
+        wrapper.addEventListener("mousedown", e => {
+
+            if (e.target === wrapper || e.target === canvas) {
+                if (window.spacePressed) {
+                    isPanning = true;
+                    panStart = { x: e.clientX, y: e.clientY };
+                } else {
+                    isSelecting = true;
+                    selectStart = { x: e.clientX, y: e.clientY };
+                    selectionBox.style.left = `${selectStart.x}px`;
+                    selectionBox.style.top = `${selectStart.y}px`;
+                    selectionBox.style.width = "0px";
+                    selectionBox.style.height = "0px";
+                    selectionBox.style.display = "block";
+                }
+            }
+
+            //
+            groupHighlight.style.display = "none";
+            //selectionBox.style.display = "none";
+            console.log(isSelecting);
+
+        });
+
+        wrapper.addEventListener("mousemove", e => {
+
+            if (isPanning) {
+                const dx = e.clientX - panStart.x;
+                const dy = e.clientY - panStart.y;
+                transform.x += dx;
+                transform.y += dy;
+                canvas.style.transform = `translate(${transform.x}px, ${transform.y}px)`;
+                svg.style.transform = `translate(${transform.x}px, ${transform.y}px)`;
+                panStart = { x: e.clientX, y: e.clientY };
+
+            } else if (isDraggingNode && draggedNode) {
+
+                // const x = e.clientX - dragOffset.x - transform.x;
+                // const y = e.clientY - dragOffset.y - transform.y;
+                // draggedNode.style.left = `${x}px`;
+                // draggedNode.style.top = `${y}px`;
+                // updateEdges();
+                const isMulti = draggedNode.classList.contains("selected");
+                if (isMulti) {
+                    const selected = document.querySelectorAll(".node.selected");
+                    selected.forEach(n => {
+                        const offsetX = parseFloat(n.dataset.offsetX);
+                        const offsetY = parseFloat(n.dataset.offsetY);
+                        const x = e.clientX - offsetX - transform.x;
+                        const y = e.clientY - offsetY - transform.y;
+                        n.style.left = `${x}px`;
+                        n.style.top = `${y}px`;
+                    });
+                } else {
+                    const x = e.clientX - dragOffset.x - transform.x;
+                    const y = e.clientY - dragOffset.y - transform.y;
+                    draggedNode.style.left = `${x}px`;
+                    draggedNode.style.top = `${y}px`;
+                }
+                updateEdges();
+                updateGroupHighlight();
+
+            } else if (isSelecting) {
+                const x = Math.min(selectStart.x, e.clientX);
+                const y = Math.min(selectStart.y, e.clientY);
+                const w = Math.abs(selectStart.x - e.clientX);
+                const h = Math.abs(selectStart.y - e.clientY);
+                selectionBox.style.left = `${x}px`;
+                selectionBox.style.top = `${y}px`;
+                selectionBox.style.width = `${w}px`;
+                selectionBox.style.height = `${h}px`;
+
+                document.querySelectorAll(".node").forEach(node => {
+                    const rect = node.getBoundingClientRect();
+                    const within =
+                        rect.left >= x &&
+                        rect.top >= y &&
+                        rect.right <= x + w &&
+                        rect.bottom <= y + h;
+
+                    node.classList.toggle("selected", within);
+                });
+
+                updateGroupHighlight();
+
+            }
+
+            if (tempLine) {
+                tempLine.setAttribute("x2", e.clientX - transform.x);
+                tempLine.setAttribute("y2", e.clientY - transform.y);
+            }
+        });
+
+        wrapper.addEventListener("mouseup", e => {
+
+            isPanning = false;
+            isDraggingNode = false;
+            draggedNode = null;
+
+            if (isSelecting) {
+                isSelecting = false;
+                selectionBox.style.display = "none";
+            }
+
+            if (tempLine) {
+                const target = document.elementFromPoint(e.clientX, e.clientY);
+                if (target && target.classList.contains("input")) {
+                    const inputNode = target.closest(".node");
+                    addEdge(edgeStartNode, inputNode);
+                }
+                svg.removeChild(tempLine);
+                tempLine = null;
+                edgeStartNode = null;
+            }
+
+        });
+
+        // Drag node
+        document.querySelectorAll(".node").forEach(node => {
+
+            // node.addEventListener("mousedown", e => {
+            //     if (!window.spacePressed && !e.target.classList.contains("handle")) {
+            //         isDraggingNode = true;
+            //         draggedNode = node;
+            //         const rect = node.getBoundingClientRect();
+            //         dragOffset.x = e.clientX - rect.left;
+            //         dragOffset.y = e.clientY - rect.top;
+            //         e.stopPropagation();
+            //     }
+            // });
+            node.addEventListener("mousedown", e => {
+
+                if (!window.spacePressed && !e.target.classList.contains("handle")) {
+                    // Start dragging all selected nodes or just this one
+                    const isMulti = node.classList.contains("selected");
+                    isDraggingNode = true;
+                    draggedNode = node;
+
+                    if (isMulti) {
+                        // Track offsets for all selected nodes
+                        document.querySelectorAll(".node.selected").forEach(n => {
+                            n.dataset.offsetX = e.clientX - n.getBoundingClientRect().left;
+                            n.dataset.offsetY = e.clientY - n.getBoundingClientRect().top;
+                        });
+                    } else {
+                        const rect = node.getBoundingClientRect();
+                        dragOffset.x = e.clientX - rect.left;
+                        dragOffset.y = e.clientY - rect.top;
+                    }
+
+                    e.stopPropagation();
+                }
+            });
+
+        });
+
+        // Start edge drawing
+
+        document.querySelectorAll(".handle.output").forEach(handle => {
+            handle.addEventListener("mousedown", e => {
+                const parent = handle.closest(".node");
+                const rect = parent.getBoundingClientRect();
+                const x = rect.left + rect.width - transform.x;
+                const y = rect.top + rect.height - transform.y;
+
+                tempLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                tempLine.classList.add("edge");
+                tempLine.setAttribute("x1", x);
+                tempLine.setAttribute("y1", y);
+                tempLine.setAttribute("x2", x);
+                tempLine.setAttribute("y2", y);
+                svg.appendChild(tempLine);
+                edgeStartNode = parent;
+
+                e.stopPropagation();
+            });
+        });
+
+            
+        // Utility
+        function addEdge(from, to) {
+            const fromRect = from.getBoundingClientRect();
+            const toRect = to.getBoundingClientRect();
+            const x1 = fromRect.left + fromRect.width - transform.x;
+            const y1 = fromRect.top + fromRect.height - transform.y;
+            const x2 = toRect.left - transform.x;
+            const y2 = toRect.top - transform.y;
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.classList.add("edge");
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            svg.appendChild(line);
+        }
+
+        function updateEdges() {
+            const lines = svg.querySelectorAll("line.edge");
+            lines.forEach(line => {
+                const x1 = parseFloat(line.getAttribute("x1")) + transform.x;
+                const y1 = parseFloat(line.getAttribute("y1")) + transform.y;
+                const x2 = parseFloat(line.getAttribute("x2")) + transform.x;
+                const y2 = parseFloat(line.getAttribute("y2")) + transform.y;
+
+                line.setAttribute("x1", x1 - transform.x);
+                line.setAttribute("y1", y1 - transform.y);
+                line.setAttribute("x2", x2 - transform.x);
+                line.setAttribute("y2", y2 - transform.y);
+            });
+        }
+
+        function updateGroupHighlight() {
+            const selected = document.querySelectorAll(".node.selected");
+            if (selected.length < 2) {
+                groupHighlight.style.display = "none";
+                return;
+            }
+
+            const bounds = Array.from(selected).map(n => n.getBoundingClientRect());
+            const minX = Math.min(...bounds.map(b => b.left));
+            const minY = Math.min(...bounds.map(b => b.top));
+            const maxX = Math.max(...bounds.map(b => b.right));
+            const maxY = Math.max(...bounds.map(b => b.bottom));
+
+            groupHighlight.style.left = `${minX - canvas.getBoundingClientRect().left}px`;
+            groupHighlight.style.top = `${minY - canvas.getBoundingClientRect().top}px`;
+            groupHighlight.style.width = `${maxX - minX}px`;
+            groupHighlight.style.height = `${maxY - minY}px`;
+            groupHighlight.style.display = "block";
+        }
+        
+    </script>
